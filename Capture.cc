@@ -64,11 +64,14 @@ Capture::Capture(int argc, char **argv) :
 		char c = waitKey(1);
 		if(c != -1)
 		{
+			/*
 			cout << Input.get(CV_CAP_PROP_FPS) << "fps" << endl;
 			cout << Input.get(CV_CAP_PROP_FOURCC) << "4c" << endl;
 			cout << "gain " << Input.get(CV_CAP_PROP_GAIN) << endl;
 			cout << "exposure " << Input.get(CV_CAP_PROP_EXPOSURE)
 				<< endl;
+			*/
+			cout << "accum count " << count << endl;
 			if(isdigit(c))
 			{
 				multiplier = c - '0';
