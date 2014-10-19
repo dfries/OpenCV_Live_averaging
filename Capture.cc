@@ -56,7 +56,8 @@ Capture::Capture(int argc, char **argv) :
 		add(convert, accum, accum);
 		++count;
 
-		accum.convertTo(out, out.type(), multiplier/count);
+		accum.convertTo(convert, convert.type(), multiplier/count);
+		convert.convertTo(out, out.type());
 		imshow(OutWin, out);
 
 		// stupid no give me what you have without waiting, don't use
