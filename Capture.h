@@ -10,5 +10,5 @@ public:
 	Capture(int argc, char **argv);
 private:
 	cv::VideoCapture Input;
-	const std::string CapWin;
+	const std::string CapWin, OutWin;
 };
