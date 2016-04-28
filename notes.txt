@@ -1,0 +1,60 @@
+This is how the frame interval (fps) is updated.
+utils/v4l2-compliance/cv4l-helpers.h
+v4l2_streamparm parm;
+parm.type = type ? type : g_type();
+memset(parm.parm.capture.reserved, 0,
+sizeof(parm.parm.capture.reserved));
+if (cv4l_ioctl(VIDIOC_G_PARM, &parm) ||
+  !(parm.parm.capture.capability & V4L2_CAP_TIMEPERFRAME))
+    return -1;
+parm.parm.capture.timeperframe = interval;
+return cv4l_ioctl(VIDIOC_S_PARM, &parm);
+
+
+OpenCV cv::VideoCapture takes the camera number only, nothing in the
+class lets you know anything about camera identifiers, or what is
+available in the system.  There are some limited camera control
+options, but at least currently such as FPS doesn't work, which is the
+more important control for night.
+
+Yes the OpenCV gui was designed to be simple and easy to use, but the
+first time I saw a couple calls I didn't like it.  Now that I've just
+started this program I'll have to say, it isn't just simple, but the
+implementation is absolutely horrible.  And how do you set the fourcc
+value when the argument is a double or get it?
+
+create window, show image (show image in a loop)
+namedWindow(CapWin);
+imshow(CapWin, capture);
+and nothing happens.  You either must call startWindowThread();
+or waitKey, but the way the waitKey argument is setup, it always
+waits, there isn't any option to get the last key without waiting.
+That and using a thread and waitKey(1) which is the shortest time you
+can, most of the time doesn't get a key I press, actually all the
+time, using a higher value and it starts to jsut be unreliable instead
+of never working.  So use waitKey(1) without the thread, for some
+reason typing something pauses for a period of time.
+
+qv4l2 basic settings program,
+nifty, lets changing a lot of parameters, shows that setting the frame
+rate on the webcam, at least Logitech, at down to 5 fps, is capturing
+200ms of video per frame, so at low light it really does help out the
+low light viewing.  Unless the program is averaging the frames, but I
+wouldn't have thought so.
+
+The OReilly Learning OpenCV book is blatently wrong, someone failed to
+actually read and correct it.  Over and over it says OpenCV is written
+in C, but then does things such as list function prototypes that
+include default arguments, which isn't valid in C.
+Then there's this little problem for cvConvertScale.
+"After conversion to the new data type, each pixel value will be
+multiplied by the value scale and then have added to it the value
+shift."
+Next paragraph,
+"It is critical to remember that, even though "Convert" precedes
+"Scale" in the function name, the actual order in which these
+operations is performed is the opposite.  Specifically, multiplication
+by scale and the addition of shift occurs before the type conversion
+takes place."
+It says the exactly opposite from what it said in the previous
+paragraph, which is right?
