@@ -15,6 +15,7 @@ Capture::Capture(int argc, char **argv) :
 	OutWin("Output Image"),
 	Count(0),
 	Brightness(1),
+	SmoothAlpha(.9),
 	FramePos(0)
 {
 	// take a number for a device name or a file, but it seems like
@@ -39,22 +40,20 @@ Capture::Capture(int argc, char **argv) :
 	namedWindow(OutWin);
 	// appears to not update until waitKey or if it has a thread
 	//startWindowThread();
-	Mat capture;
 	Mat out;
-	Input >> capture;
+	Input >> RawFrame;
 
-	Accum = Mat::zeros(capture.rows, capture.cols, CV_32SC3);
-	ConvertIn = Accum.clone();
+	Setup(CV_32SC3);
 	cv::Mat convert_out = Accum.clone();
 
-	capture.copyTo(out);
+	RawFrame.copyTo(out);
 	for(;;)
 	{
-		Input >> capture;
-		if(capture.empty())
+		Input >> RawFrame;
+		if(RawFrame.empty())
 			break;
-		imshow(CapWin, capture);
-		capture.convertTo(ConvertIn, ConvertIn.type());
+		imshow(CapWin, RawFrame);
+		RawFrame.convertTo(ConvertIn, ConvertIn.type());
 
 		// process while ConvertIn is still the last frame read
 		ProcessKey();
@@ -63,6 +62,11 @@ Capture::Capture(int argc, char **argv) :
 		{
 			add(ConvertIn, Accum, Accum);
 			++Count;
+		}
+		else if(Frames.size() == 1)
+		{
+			Accum *= SmoothAlpha;
+			Accum += ConvertIn * (1 - SmoothAlpha);
 		}
 		else
 		{
@@ -84,6 +88,39 @@ Capture::Capture(int argc, char **argv) :
 	}
 }
 
+void Capture::Setup(int type)
+{
+	Accum = Mat::zeros(RawFrame.rows, RawFrame.cols, type);
+	ConvertIn = Accum.clone();
+	RawFrame.convertTo(ConvertIn, ConvertIn.type());
+	for(size_t i = 0; i < Frames.size(); ++i)
+	{
+		Mat &m = Frames[i];
+		if(m.type() != type)
+			m.convertTo(m, type);
+		/*
+		ConvertIn.copyTo(Frames[i]);
+		Accum += ConvertIn;
+		*/
+	}
+}
+
+void Capture::Clear()
+{
+	cout << "clear Accumulation matrix Count was "
+		<< Count << endl;
+	// clear the matrix
+	cv::Scalar zero(0, 0, 0);
+	Accum.setTo(zero);
+	for(size_t i = 0; i < Frames.size(); ++i)
+	{
+		ConvertIn.copyTo(Frames[i]);
+		Accum += ConvertIn;
+	}
+	if(Frames.empty())
+		Count = 0;
+}
+
 void Capture::ProcessKey()
 {
 	// stupid no give me what you have without waiting, don't use
@@ -99,6 +136,48 @@ void Capture::ProcessKey()
 	cout << "exposure " << Input.get(CV_CAP_PROP_EXPOSURE)
 		<< endl;
 	*/
+	double alpha = 0;
+	switch(c)
+	{
+	case '!':
+		alpha = .1;
+		break;
+	case '@':
+		alpha = .2;
+		break;
+	case '#':
+		alpha = .3;
+		break;
+	case '$':
+		alpha = .4;
+		break;
+	case '%':
+		alpha = .5;
+		break;
+	case '^':
+		alpha = .6;
+		break;
+	case '&':
+		alpha = .7;
+		break;
+	case '*':
+		alpha = .8;
+		break;
+	case '(':
+		alpha = .9;
+		break;
+	case ')':
+		alpha = .95;
+		break;
+	case '_':
+		alpha = .98;
+		break;
+	}
+	if(alpha)
+	{
+		SmoothAlpha = alpha;
+		cout << "SmoothAlpha " << SmoothAlpha << endl;
+	}
 	if(isdigit(c))
 	{
 		Brightness = c - '0';
@@ -109,11 +188,18 @@ void Capture::ProcessKey()
 	else if(c == '+' || c == '=')
 	{
 		if(Frames.empty())
-			Accum.setTo(cv::Scalar(0, 0, 0));
-
-		// add in the current frame a second time
-		// so the division works out
-		Frames.push_back(ConvertIn.clone());
+		{
+			Frames.push_back(ConvertIn.clone());
+			Setup(CV_64FC3);
+			Clear();
+		}
+		else
+		{
+			if(Frames.size() == 1)
+				Setup(CV_32SC3);
+			Frames.push_back(ConvertIn.clone());
+		}
+		// add a frame to Accum needs to have Count frames
 		add(ConvertIn, Accum, Accum);
 		Count = Frames.size();
 	}
@@ -124,6 +210,16 @@ void Capture::ProcessKey()
 			// subtract out the frame being dropped
 			subtract(Accum, Frames[FramePos], Accum);
 			Frames.erase(Frames.begin()+FramePos);
+		}
+		if(Frames.size() == 1)
+		{
+			Setup(CV_64FC3);
+			Clear();
+		}
+		else if(Frames.empty())
+		{
+			Setup(CV_32SC3);
+			Clear();
 		}
 		Count = Frames.size();
 		if(Frames.empty())
@@ -139,26 +235,20 @@ void Capture::ProcessKey()
 	}
 	else if(c == 'c')
 	{
-		cout << "clear Accumulation matrix Count was "
-			<< Count << endl;
-		// clear the matrix
-		cv::Scalar zero(0, 0, 0);
-		Accum.setTo(zero);
-		for(size_t i = 0; i < Frames.size(); ++i)
-		{
-			ConvertIn.copyTo(Frames[i]);
-			Accum += ConvertIn;
-		}
-		if(Frames.empty())
-			Count = 0;
+		Clear();
 	}
 	else if(c == '?')
 	{
-		cout << "0-9	brightness Brightness\n"
+		cout << "key	description\n"
+			"0-9	brightness Brightness\n"
 			"c	clear frame\n"
 			"f	set fps to 5 (not working)\n"
 			"+ or =	increment rolling average\n"
-			"-	decrement rolling average\n";
+			"-	decrement rolling average\n"
+			"	count 0 - averages all frames\n"
+			"	count 1 - old * alpha + new (1-alpha)\n"
+			"	count n - rolling average n frames\n"
+			"shift 1-0_  adjust count 1 alpha\n";
 	}
 	cout << (Frames.empty() ? "Accum" : "frame") <<
 		" count " << Count << endl;

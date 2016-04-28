@@ -10,10 +10,14 @@ class Capture
 public:
 	Capture(int argc, char **argv);
 private:
+	void Setup(int type);
 	void ProcessKey();
+	void Clear();
 
 	cv::VideoCapture Input;
 	const std::string CapWin, OutWin;
+
+	cv::Mat RawFrame;
 
 	// the sum of all captured images
 	cv::Mat Accum;
@@ -23,6 +27,7 @@ private:
 	// number of frames in Accum
 	int Count;
 	double Brightness;
+	double SmoothAlpha;
 
 	// keep track of past frames to subtract from the Accumulated image
 	std::deque<cv::Mat> Frames;
