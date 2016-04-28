@@ -1,4 +1,6 @@
-/* Copyright (C) 2014 David Fries <David@Fries.net>  All right reserved */
+/* Copyright (C) 2016 David Fries <David@Fries.net>
+ * Licensed under the terms of GNU General Public License version 3.
+ */
 
 #include "Capture.h"
 
