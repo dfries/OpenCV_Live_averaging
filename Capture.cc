@@ -98,10 +98,6 @@ void Capture::Setup(int type)
 		Mat &m = Frames[i];
 		if(m.type() != type)
 			m.convertTo(m, type);
-		/*
-		ConvertIn.copyTo(Frames[i]);
-		Accum += ConvertIn;
-		*/
 	}
 }
 
@@ -196,11 +192,16 @@ void Capture::ProcessKey()
 		else
 		{
 			if(Frames.size() == 1)
+			{
 				Setup(CV_32SC3);
+				Clear();
+				ConvertIn.copyTo(Frames.front());
+			}
 			Frames.push_back(ConvertIn.clone());
+			// add a frame to Accum needs to have Count
+			// frames
+			add(ConvertIn, Accum, Accum);
 		}
-		// add a frame to Accum needs to have Count frames
-		add(ConvertIn, Accum, Accum);
 		Count = Frames.size();
 	}
 	else if(c == '-')
